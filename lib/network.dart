@@ -8,6 +8,7 @@ export 'src/helpers/url.dart';
 export 'src/enum/border_radius_enum.dart';
 
 /// Entities
+export 'src/entity/application_entity.dart';
 export 'src/entity/document_entity.dart';
 export 'src/entity/employee_entity.dart';
 export 'src/entity/request_entity.dart';

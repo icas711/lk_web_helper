@@ -30,11 +30,12 @@ enum EndPointType {
   documents('/documents/', '', ''),
   documentView('/documents/', '', ''),
   documentDetail('/documents/', '/detailsIn', ''),
+  //application('/applications/', '', ''),
   /* documentTemplate(
       '/document_templates/', '/files/search/by_size?size=low', ''),*/
   documentTemplate('/document_templates/', '/files', '/data'),
   documentFileTemplate('/document_templates/', '/files/', '/data'),
-  request('/applications/', '', ''),
+  application('/applications/', '/detailsOut/', ''),
   requestFile('/requests/', '/files/', '/data'),
   requestDelete('/requests/', '', ''),
   requestCreate('/requests/', '/details', ''),
