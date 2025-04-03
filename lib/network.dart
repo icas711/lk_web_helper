@@ -12,7 +12,8 @@ export 'src/entity/application_entity.dart';
 export 'src/entity/document_entity.dart';
 export 'src/entity/employee_entity.dart';
 export 'src/entity/request_entity.dart';
-
+export 'src/entity/server_files.dart';
+export 'src/entity/template_entity.dart';
 
 /// Models
 export 'src/model/user.dart';
