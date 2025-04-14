@@ -36,7 +36,6 @@ final class TokenStorageImplShared implements TokenStorage<AuthTokenPair> {
   @override
   Future<void> delete() async {
     final SharedPreferences _secureStorage=await SharedPreferences.getInstance();
-    print('delete: all${TokensStorageKeys.authToken.keyName}');
     for (final key in TokensStorageKeys.values) {
       await _secureStorage.remove(key.keyName);
     }

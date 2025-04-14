@@ -113,7 +113,6 @@ class OAuth extends Interceptor {
     );
     final body = response.data!;
     final userid = JwtDecoder.decode(body['access_token'])['userId'];
-    print(JwtDecoder.decode(body['access_token']));
     final AuthTokenPair authTokenPair = AuthTokenPair(
       accessToken: body['access_token'] ?? '',
       refreshToken: body['refresh_token'] ?? '',
