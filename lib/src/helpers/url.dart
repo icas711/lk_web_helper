@@ -3,11 +3,8 @@ enum Url {
     'https://check-car.itjn.ru:8079/realms/ep/protocol/openid-connect/token',
     'https://be.skabinet.su',
   ),
-  /*dev('https://gds.skabinet.ru/users/login',
-      'https://gds.skabinet.ru'),*/
   prod(
     'https://check-car.itjn.ru:8079/realms/ep/protocol/openid-connect/token',
-   // 'http://158.160.125.73:8091'
     'https://be.skabinet.su',
   );
 
@@ -27,6 +24,8 @@ enum EndPointType {
     '',
     '',
   ),
+  application('/applications/', '/detailsOut/', ''),
+  cars('/cars/', '', ''),
   documents('/documents/', '', ''),
   documentView('/documents/', '', ''),
   documentDetail('/documents/', '/detailsIn', ''),
@@ -35,7 +34,13 @@ enum EndPointType {
       '/document_templates/', '/files/search/by_size?size=low', ''),*/
   documentTemplate('/document_templates/', '/files', '/data'),
   documentFileTemplate('/document_templates/', '/files/', '/data'),
-  application('/applications/', '/detailsOut/', ''),
+  employeesRegistration('/employees/registration/', '', ''),
+  employees('/employees/', '', ''),
+  events('/checkListEvents?parentId=', '', ''),
+  getProfile('/employees/view/', '', ''),
+  notification('/notificationClients/', '', ''),
+  organizations('/organizations/', '', ''),
+  registration('/', '', ''),
   requestFile('/requests/', '/files/', '/data'),
   requestDelete('/requests/', '', ''),
   requestCreate('/requests/', '/details', ''),
@@ -43,24 +48,17 @@ enum EndPointType {
   requestDetail('/requests/', '/details/view', ''),
   requestStatusEvent('/requests/', '/status_events', ''),
   requestFileTemplate('/request_templates/', '/files/', '/data'),
-  getProfile('/employees/view/', '', ''),
   users('/users/', '', ''),
   usersRegistration('/users/registration/', '', ''),
   organizationsRegistration('/organizations/registration/', '/send', ''),
-  employeesRegistration('/employees/registration/', '', ''),
-  employees('/employees/', '', ''),
   validation('/invitations/', '/confirm?confirmationCode=', ''),
-  cars('/cars/', '', ''),
+  serverFile('/', '', ''),
   templates('/templates/', '/files/', '/data'),
   tasks('/tasks/view/search/by_employee?employeeId=', '', ''),
   taskView('/tasks/', '/view', ''),
   taskDetail('/tasks/', '/details/view', ''),
   taskFiles('/tasks/', '/files', ''),
-  updateTaskDetail('/tasks/', '/details/view', ''),
-  events('/checkListEvents?parentId=', '', ''),
-  organizations('/organizations/', '', ''),
-  registration('/', '', ''),
-  serverFile('/', '', '');
+  updateTaskDetail('/tasks/', '/details/view', '');
 
   final String value;
   final String secondValue;
@@ -69,9 +67,9 @@ enum EndPointType {
   const EndPointType(this.value, this.secondValue, this.thirdValue);
 }
 
- extension EndPointTypeExt on EndPointType{
+extension EndPointTypeExt on EndPointType {
   String getUrl([String? id, String? secondId]) {
-    String url = Url.dev.base+value;
+    String url = Url.dev.base + value;
     if (id != null) url = url + id + secondValue;
     if (secondId != null) url = '$url/$secondId$thirdValue/data';
     return url;
