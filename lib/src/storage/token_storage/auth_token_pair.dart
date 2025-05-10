@@ -11,6 +11,7 @@ class AuthTokenPair {
   final int? expiresAt;
   final int? expiresIn;
   final int? refreshExpiresIn;
+  final int? refreshExpiresAt;
   final String? userId;
   final String? username;
   final String? password;
@@ -20,11 +21,11 @@ class AuthTokenPair {
     this.expiresAt,
     this.expiresIn,
     this.refreshExpiresIn,
+    this.refreshExpiresAt,
     this.userId,
     this.username,
     this.password,
   });
-  
 
   AuthTokenPair copyWith({
     String? accessToken,
@@ -32,6 +33,7 @@ class AuthTokenPair {
     int? expiresAt,
     int? expiresIn,
     int? refreshExpiresIn,
+    int? refreshExpiresAt,
     String? userId,
     String? username,
     String? password,
@@ -42,6 +44,7 @@ class AuthTokenPair {
       expiresAt: expiresAt ?? this.expiresAt,
       expiresIn: expiresIn ?? this.expiresIn,
       refreshExpiresIn: refreshExpiresIn ?? this.refreshExpiresIn,
+      refreshExpiresAt: refreshExpiresAt ?? this.refreshExpiresAt,
       userId: userId ?? this.userId,
       username: username ?? this.username,
       password: password ?? this.password,
@@ -55,6 +58,7 @@ class AuthTokenPair {
       'expiresAt': expiresAt,
       'expiresIn': expiresIn,
       'refreshExpiresIn': refreshExpiresIn,
+      'refreshExpiresAt': refreshExpiresAt,
       'userId': userId,
       'username': username,
       'password': password,
@@ -67,7 +71,14 @@ class AuthTokenPair {
       refreshToken: map['refreshToken'] as String,
       expiresAt: map['expiresAt'] != null ? map['expiresAt'] as int : null,
       expiresIn: map['expiresIn'] != null ? map['expiresIn'] as int : null,
-      refreshExpiresIn: map['refreshExpiresIn'] != null ? map['refreshExpiresIn'] as int : null,
+      refreshExpiresIn:
+          map['refreshExpiresIn'] != null
+              ? map['refreshExpiresIn'] as int
+              : null,
+      refreshExpiresAt:
+          map['refreshExpiresAt'] != null
+              ? map['refreshExpiresAt'] as int
+              : null,
       userId: map['userId'] != null ? map['userId'] as String : null,
       username: map['username'] != null ? map['username'] as String : null,
       password: map['password'] != null ? map['password'] as String : null,
@@ -76,6 +87,6 @@ class AuthTokenPair {
 
   String toJson() => json.encode(toMap());
 
-  factory AuthTokenPair.fromJson(String source) => AuthTokenPair.fromMap(json.decode(source) as Map<String, dynamic>);
-
+  factory AuthTokenPair.fromJson(String source) =>
+      AuthTokenPair.fromMap(json.decode(source) as Map<String, dynamic>);
 }
