@@ -51,7 +51,7 @@ class OAuth extends Interceptor {
   ) async {
     final authTokenPair = await storage.read();
     final expiresAtMillis = authTokenPair?.expiresAt;
-    final refreshExpiresAtMillis = authTokenPair?.refreshExpiresIn;
+    final refreshExpiresAtMillis = authTokenPair?.refreshExpiresAt;
     if (expiresAtMillis != null && refreshExpiresAtMillis != null) {
       final expiresAt = DateTime.fromMillisecondsSinceEpoch(expiresAtMillis);
       final refreshExpiresAt = DateTime.fromMillisecondsSinceEpoch(
@@ -123,6 +123,11 @@ class OAuth extends Interceptor {
           clock
               .now()
               .add((body['expires_in'] as int).seconds)
+              .millisecondsSinceEpoch,
+      refreshExpiresAt:
+          clock
+              .now()
+              .add((body['refresh_expires_in'] as int).seconds)
               .millisecondsSinceEpoch,
       username: username,
       password: password,
