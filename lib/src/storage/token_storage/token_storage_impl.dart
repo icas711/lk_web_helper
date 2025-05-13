@@ -52,20 +52,20 @@ final class TokenStorageImpl implements TokenStorage<AuthTokenPair> {
 
   @override
   Future<AuthTokenPair?> read() async {
-    try {
+    // try {
       final tokenJson = await _secureStorage.read(
         key: TokensStorageKeys.authToken.keyName,
       );
       return tokenJson == null ? null : AuthTokenPair.fromJson(tokenJson);
-    } on PlatformException catch (e) {
-      if (e.code == 'BadPaddingException') {
-        await _secureStorage.delete(
-          key: TokensStorageKeys.authToken.keyName,
-        ); // Удаляем битые данные
-        print('Ошибка дешифровки. Данные удалены.');
-      }
-    }
-    return null;
+    // } on PlatformException catch (e) {
+    //   if (e.code == 'BadPaddingException') {
+    //     await _secureStorage.delete(
+    //       key: TokensStorageKeys.authToken.keyName,
+    //     ); // Удаляем битые данные
+    //     print('Ошибка дешифровки. Данные удалены.');
+    //   }
+    // }
+    // return null;
   }
 
   @override
