@@ -1,5 +1,6 @@
 import 'package:clock/clock.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../helpers/jwt_decoder.dart';
 import '../storage/token_storage/auth_token_pair.dart';
@@ -49,32 +50,54 @@ class OAuth extends Interceptor {
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    final authTokenPair = await storage.read();
-    final expiresAtMillis = authTokenPair?.expiresAt;
-    final refreshExpiresAtMillis = authTokenPair?.refreshExpiresAt;
-    if (expiresAtMillis != null && refreshExpiresAtMillis != null) {
-      final expiresAt = DateTime.fromMillisecondsSinceEpoch(expiresAtMillis);
-      final refreshExpiresAt = DateTime.fromMillisecondsSinceEpoch(
-        refreshExpiresAtMillis,
-      );
-      if (refreshExpiresAt.isBefore(clock.now())) {
-        await login(
-          PasswordGrant(
-            username: authTokenPair?.username ?? '',
-            password: authTokenPair?.password ?? '',
-          ),
-        );
-      } else if (expiresAt.isBefore(clock.now())) {
-        await refresh();
+    try {
+      final authTokenPair = await storage.read();
+      if (authTokenPair == null) {
+        return handler.next(options);
       }
-    }
+      final now = clock.now();
+      final expiresAt = DateTime.fromMillisecondsSinceEpoch(
+        authTokenPair.expiresAt ?? 0,
+      );
+      final refreshExpiresAt = DateTime.fromMillisecondsSinceEpoch(
+        authTokenPair.refreshExpiresAt ?? 0,
+      );
+      if (expiresAt.isBefore(now) && refreshExpiresAt.isAfter(now)) {
+        try {
+          await refresh();
+        } catch (e) {
+          print('Refresh failed: $e');
+          await logout();
+          return handler.next(options);
+        }
+      } else if (refreshExpiresAt.isBefore(now)) {
+        // Full login required
+        if (authTokenPair.username != null && authTokenPair.password != null) {
+          try {
+            await login(
+              PasswordGrant(
+                username: authTokenPair.username!,
+                password: authTokenPair.password!,
+              ),
+            );
+          } catch (e) {
+            print('Re-login failed: $e');
+            await logout();
+          }
+        } else {
+          await logout();
+        }
+      }
 
-    final token = await storage.read();
-
-    if (token != null) {
-      options.headers['Authorization'] = 'Bearer ${token.accessToken}';
+      final newToken = await storage.read();
+      if (newToken != null) {
+        options.headers['Authorization'] = 'Bearer ${newToken.accessToken}';
+      }
+    } catch (e) {
+      print('OAuth interceptor error: $e');
+    } finally {
+      handler.next(options);
     }
-    return super.onRequest(options, handler);
   }
 
   Future<AuthTokenPair> login(OAuthGrantType grant) async {

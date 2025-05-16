@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -52,11 +53,25 @@ final class TokenStorageImpl implements TokenStorage<AuthTokenPair> {
 
   @override
   Future<AuthTokenPair?> read() async {
-    // try {
+    try {
       final tokenJson = await _secureStorage.read(
         key: TokensStorageKeys.authToken.keyName,
       );
-      return tokenJson == null ? null : AuthTokenPair.fromJson(tokenJson);
+      if (tokenJson == null) return null;
+      return AuthTokenPair.fromJson(tokenJson);
+    } on PlatformException catch (e) {
+      // Handle decryption errors
+      if (e.code == 'BadPaddingException' || e.code.contains('crypto')) {
+        // Удаляем битые данные
+        await _secureStorage.delete(key: TokensStorageKeys.authToken.keyName);
+        print('Decryption error - cleared corrupted token');
+      }
+      return null;
+    }
+    final tokenJson = await _secureStorage.read(
+      key: TokensStorageKeys.authToken.keyName,
+    );
+    return tokenJson == null ? null : AuthTokenPair.fromJson(tokenJson);
     // } on PlatformException catch (e) {
     //   if (e.code == 'BadPaddingException') {
     //     await _secureStorage.delete(
