@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:synchronized/synchronized.dart';
 
 import 'auth_token_pair.dart';
 
@@ -47,61 +48,72 @@ final class TokenStorageImplShared implements TokenStorage<AuthTokenPair> {
 
 final class TokenStorageImpl implements TokenStorage<AuthTokenPair> {
   final FlutterSecureStorage _secureStorage;
-
-  /// {@macro tokens_storage.class}
-  const TokenStorageImpl(this._secureStorage);
+  final _lock = Lock();
+  TokenStorageImpl(this._secureStorage);
 
   @override
   Future<AuthTokenPair?> read() async {
-    try {
-      final tokenJson = await _secureStorage.read(
-        key: TokensStorageKeys.authToken.keyName,
-      );
-      if (tokenJson == null) return null;
-      return AuthTokenPair.fromJson(tokenJson);
-    } on PlatformException catch (e) {
-      // Handle decryption errors
-      if (e.code == 'BadPaddingException' || e.code.contains('crypto')) {
-        // Удаляем битые данные
-        await _secureStorage.delete(key: TokensStorageKeys.authToken.keyName);
-        print('Decryption error - cleared corrupted token');
+    return await _lock.synchronized(() async {
+      try {
+        final tokenJson = await _secureStorage.read(
+          key: TokensStorageKeys.authToken.keyName,
+        );
+
+        if (tokenJson == null) {
+          debugPrint('No token found in secure storage');
+          return null;
+        }
+
+        final token = AuthTokenPair.fromJson(tokenJson);
+        debugPrint('Token retrieved: ${token.accessToken.substring(0, 10)}...');
+        return token;
+      } on PlatformException catch (e) {
+        debugPrint('Secure storage read error: ${e.toString()}');
+        if (e.code == 'BadPaddingException' || e.code.contains('crypto')) {
+          await _secureStorage.delete(key: TokensStorageKeys.authToken.keyName);
+          debugPrint('Deleted corrupted token due to decryption error');
+        }
+        return null;
       }
-      return null;
-    }
-    final tokenJson = await _secureStorage.read(
-      key: TokensStorageKeys.authToken.keyName,
-    );
-    return tokenJson == null ? null : AuthTokenPair.fromJson(tokenJson);
-    // } on PlatformException catch (e) {
-    //   if (e.code == 'BadPaddingException') {
-    //     await _secureStorage.delete(
-    //       key: TokensStorageKeys.authToken.keyName,
-    //     ); // Удаляем битые данные
-    //     print('Ошибка дешифровки. Данные удалены.');
-    //   }
-    // }
-    // return null;
+    });
   }
 
   @override
   Future<void> write(AuthTokenPair token) async {
-    return await _secureStorage.write(
-      key: TokensStorageKeys.authToken.keyName,
-      value: token.toJson(),
-    );
+    await _lock.synchronized(() async {
+      print('login: ${token.username}');
+      print('login: ${token.password}');
+      try {
+        // Write to secure storage
+        await _secureStorage.write(
+          key: TokensStorageKeys.authToken.keyName,
+          value: token.toJson(),
+        );
+        debugPrint(
+          'Token written successfully, expires at: ${DateTime.fromMillisecondsSinceEpoch(token.expiresAt ?? 0)}',
+        );
+      } catch (e) {
+        debugPrint('Token write failed: $e');
+        rethrow;
+      }
+    });
   }
 
   @override
   Future<void> delete() async {
-    for (final key in TokensStorageKeys.values) {
-      await _secureStorage.delete(key: key.keyName);
-    }
+    await _lock.synchronized(() async {
+      try {
+        await _secureStorage.delete(key: TokensStorageKeys.authToken.keyName);
+        debugPrint('Token deleted from all storage');
+      } catch (e) {
+        debugPrint('Token deletion failed: $e');
+      }
+    });
   }
 }
 
 /// Keys for [TokenStorageImpl]
 enum TokensStorageKeys {
-  /// @nodoc
   authToken('app_auth_token');
 
   /// Key name
