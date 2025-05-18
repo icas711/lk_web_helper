@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -9,50 +11,50 @@ import 'auth_token_pair.dart';
 /// {@template tokens_storage.class}
 /// Implementation [TokenStorage]
 /// {@endtemplate}
-final class TokenStorageImplShared implements TokenStorage<AuthTokenPair> {
-  /* final SharedPreferences _secureStorage;
+class TokenStorageImplShared implements TokenStorage<AuthTokenPair> {
+  final SharedPreferences _prefs;
+  AuthTokenPair? _cachedToken;
 
-  /// {@macro tokens_storage.class}
-  const TokenStorageImplShared(this._secureStorage);*/
+  TokenStorageImplShared(this._prefs);
 
   @override
   Future<AuthTokenPair?> read() async {
-    final SharedPreferences _secureStorage =
-        await SharedPreferences.getInstance();
-    final tokenJson = _secureStorage.getString(
-      TokensStorageKeys.authToken.keyName,
-    );
-    if (tokenJson == null) return null;
-    return AuthTokenPair.fromJson(tokenJson);
+    if (_cachedToken != null) return _cachedToken;
+    
+    final json = _prefs.getString('auth_token');
+    if (json == null) return null;
+    
+    try {
+      _cachedToken = AuthTokenPair.fromJson(jsonDecode(json));
+      return _cachedToken;
+    } catch (e) {
+      await _prefs.remove('auth_token');
+      return null;
+    }
   }
 
   @override
-  Future<void> write(AuthTokenPair token) async {
-    final SharedPreferences _secureStorage =
-        await SharedPreferences.getInstance();
-    await _secureStorage.setString(
-      TokensStorageKeys.authToken.keyName,
-      token.toJson(),
-    );
+  Future<void> write(AuthTokenPair value) async {
+    _cachedToken = value;
+    await _prefs.setString('auth_token', jsonEncode(value.toJson()));
   }
 
   @override
   Future<void> delete() async {
-    final SharedPreferences _secureStorage =
-        await SharedPreferences.getInstance();
-    for (final key in TokensStorageKeys.values) {
-      await _secureStorage.remove(key.keyName);
-    }
+    _cachedToken = null;
+    await _prefs.remove('auth_token');
   }
 }
 
 final class TokenStorageImpl implements TokenStorage<AuthTokenPair> {
   final FlutterSecureStorage _secureStorage;
+  AuthTokenPair? _cachedToken;
   final _lock = Lock();
   TokenStorageImpl(this._secureStorage);
 
   @override
   Future<AuthTokenPair?> read() async {
+     if (_cachedToken != null) return _cachedToken;
     return await _lock.synchronized(() async {
       try {
         final tokenJson = await _secureStorage.read(
@@ -64,9 +66,9 @@ final class TokenStorageImpl implements TokenStorage<AuthTokenPair> {
           return null;
         }
 
-        final token = AuthTokenPair.fromJson(tokenJson);
-        debugPrint('Token retrieved: ${token.accessToken.substring(0, 10)}...');
-        return token;
+        _cachedToken = AuthTokenPair.fromJson(tokenJson);
+        debugPrint('Token retrieved: ${_cachedToken?.accessToken.substring(0, 10)}...');
+        return _cachedToken;
       } on PlatformException catch (e) {
         debugPrint('Secure storage read error: ${e.toString()}');
         if (e.code == 'BadPaddingException' || e.code.contains('crypto')) {
@@ -80,9 +82,8 @@ final class TokenStorageImpl implements TokenStorage<AuthTokenPair> {
 
   @override
   Future<void> write(AuthTokenPair token) async {
+    _cachedToken = token;
     await _lock.synchronized(() async {
-      print('login: ${token.username}');
-      print('login: ${token.password}');
       try {
         // Write to secure storage
         await _secureStorage.write(
@@ -101,6 +102,7 @@ final class TokenStorageImpl implements TokenStorage<AuthTokenPair> {
 
   @override
   Future<void> delete() async {
+     _cachedToken = null;
     await _lock.synchronized(() async {
       try {
         await _secureStorage.delete(key: TokensStorageKeys.authToken.keyName);

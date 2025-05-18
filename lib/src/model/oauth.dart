@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:clock/clock.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:synchronized/synchronized.dart';
 
 import '../helpers/jwt_decoder.dart';
+import '../helpers/url.dart';
 import '../storage/token_storage/auth_token_pair.dart';
 import '../storage/token_storage/token_storage_impl.dart';
 import 'oauth_grant_type.dart';
@@ -14,24 +17,30 @@ class OAuth extends Interceptor {
     required this.tokenUrl,
     required this.clientId,
     required this.clientSecret,
-    this.dio,
-    this.name = 'oauth',
+    required this.apiDio,
     this.clock = const Clock(),
     required this.storage,
-  });
-
+  }) : _authDio = Dio(BaseOptions(baseUrl: Url.prod.authorization)) // Для OAuth
+       {
+    // Настраиваем интерцепторы для _authDio (логирование в debug)
+    if (kDebugMode) {
+      _authDio.interceptors.add(
+        LogInterceptor(requestHeader: true, responseBody: true),
+      );
+    }
+  }
+  final Dio _authDio; // Для запросов токенов
+  final Dio apiDio; // Для API-запросов
   final String tokenUrl;
   final String clientId;
   final String clientSecret;
-  final String name;
-  final Dio? dio;
   final Clock clock;
   final TokenStorage<AuthTokenPair> storage;
 
   final _refreshLock = Lock();
+  final _pendingRequests = <Completer<void>>[];
   bool _isRefreshing = false;
-  String? username;
-  String? password;
+
   Future<bool> get isSignedIn async {
     final AuthTokenPair? token = await storage.read();
     return token != null;
@@ -50,91 +59,53 @@ class OAuth extends Interceptor {
     ));
   }
 
+  final _storageLock = Lock();
   @override
   Future<void> onRequest(
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    // Пропустить запросы токенов, чтобы избежать циклов
     if (options.path == tokenUrl) {
       return handler.next(options);
     }
-    try {
-      final authTokenPair = await storage.read();
-      if (authTokenPair == null) {
-        return handler.next(options);
-      }
-      final now = clock.now().add(Duration(minutes: 1));
-      final expiresAt = DateTime.fromMillisecondsSinceEpoch(
-        authTokenPair.expiresAt ?? 0,
-      );
+
+    final authTokenPair = await storage.read();
+    final expiresAtMillis = authTokenPair?.expiresAt;
+    final refreshExpiresAtMillis = authTokenPair?.refreshExpiresIn;
+    if (expiresAtMillis != null && refreshExpiresAtMillis != null) {
+      final expiresAt = DateTime.fromMillisecondsSinceEpoch(expiresAtMillis);
       final refreshExpiresAt = DateTime.fromMillisecondsSinceEpoch(
-        authTokenPair.refreshExpiresAt ?? 0,
+        refreshExpiresAtMillis,
       );
-      //Проверяет, нужно ли обновить токен (с буфером в 1 минуту)
-      if (expiresAt.isBefore(now)) {
-        await _safeRefresh(authTokenPair);
-      }
-
-      // Присваивает текущий токен (уже мог быть обновлен)
-      final currentToken = await storage.read();
-      if (currentToken != null) {
-        options.headers['Authorization'] = 'Bearer ${currentToken.accessToken}';
-        debugPrint(
-          'Attached token to request: ${currentToken.accessToken.substring(0, 10)}...',
+      final now= clock.now().add(Duration(seconds:30000));
+      if (refreshExpiresAt.isBefore(now)) {
+        await login(
+          PasswordGrant(
+            username: authTokenPair?.username ?? '',
+            password: authTokenPair?.password ?? '',
+          ),
         );
-      }
-    } catch (e) {
-      debugPrint('OAuth interceptor error: $e');
-    } finally {
-      handler.next(options);
-    }
-  }
-
-  Future<void> _safeRefresh(AuthTokenPair authTokenPair) async {
-    if (_isRefreshing) return;
-
-    await _refreshLock.synchronized(() async {
-      if (_isRefreshing) return;
-      _isRefreshing = true;
-
-      try {
-        debugPrint('Attempting token refresh...');
+      } else if (expiresAt.isBefore(now)) {
         await refresh();
-        debugPrint('Token refresh successful');
-      } catch (e) {
-        debugPrint('Token refresh failed: $e');
-        // Если обновление не удалось, но есть учетные данные,
-        // то пробует выполнить полный вход
-        if (authTokenPair.username != null && authTokenPair.password != null) {
-          try {
-            debugPrint('Attempting full reauthentication...');
-            await login(
-              PasswordGrant(
-                username: authTokenPair.username!,
-                password: authTokenPair.password!,
-              ),
-            );
-          } catch (e) {
-            debugPrint('Full reauthentication failed: $e');
-            await logout();
-          }
-        } else {
-          await logout();
-        }
-      } finally {
-        _isRefreshing = false;
       }
-    });
+    }
+
+    final token = await storage.read();
+
+    if (token != null) {
+      options.headers['Authorization'] = 'Bearer ${token.accessToken}';
+    }
+    return super.onRequest(options, handler);
   }
 
+  String? username;
+  String? password;
   Future<AuthTokenPair> login(OAuthGrantType grant) async {
     if (grant is PasswordGrant) {
       username = grant.username;
       password = grant.password;
     }
 
-    final dio = this.dio ?? Dio();
     final options = await grant.handle(
       RequestOptions(
         path: tokenUrl,
@@ -150,7 +121,7 @@ class OAuth extends Interceptor {
       'client_secret': clientSecret,
     });
 
-    final response = await dio.request<Map<String, dynamic>>(
+    final response = await _authDio.request<Map<String, dynamic>>(
       tokenUrl,
       data: options.data,
       options: Options(
@@ -180,7 +151,9 @@ class OAuth extends Interceptor {
       username: username,
       password: password,
     );
-    await storage.write(authTokenPair);
+    await _storageLock.synchronized(() async {
+      await storage.write(authTokenPair); // Сохраняем под блокировкой
+    });
     return authTokenPair;
   }
 
@@ -194,6 +167,7 @@ class OAuth extends Interceptor {
 
   Future<void> logout() async {
     await storage.delete();
+    _authDio.close();
   }
 }
 
@@ -209,4 +183,26 @@ extension NumTimeExtension<T extends num> on T {
   /// Returns a Duration represented in microseconds
   Duration get microseconds =>
       milliseconds ~/ Duration.microsecondsPerMillisecond;
+}
+
+// Вспомогательный класс для безопасной работы с handler
+class _SafeHandler {
+  final RequestInterceptorHandler _handler;
+  bool _isCompleted = false;
+
+  _SafeHandler(this._handler);
+
+  void next(RequestOptions options) {
+    if (!_isCompleted) {
+      _isCompleted = true;
+      _handler.next(options);
+    }
+  }
+
+  void reject(DioException error) {
+    if (!_isCompleted) {
+      _isCompleted = true;
+      _handler.reject(error);
+    }
+  }
 }
