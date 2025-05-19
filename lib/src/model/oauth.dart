@@ -77,7 +77,7 @@ class OAuth extends Interceptor {
       final refreshExpiresAt = DateTime.fromMillisecondsSinceEpoch(
         refreshExpiresAtMillis,
       );
-      final now= clock.now().add(Duration(seconds:30000));
+      final now= clock.now();
       if (refreshExpiresAt.isBefore(now)) {
         await login(
           PasswordGrant(
