@@ -6,11 +6,43 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:synchronized/synchronized.dart';
 
+import '../../model/ru_store_token.dart';
 import 'auth_token_pair.dart';
 
-/// {@template tokens_storage.class}
-/// Implementation [TokenStorage]
-/// {@endtemplate}
+class RuStoreTokenStorage implements TokenStorage<RuStoreToken> {
+  final SharedPreferences _prefs;
+RuStoreToken? _cachedToken;
+  RuStoreTokenStorage(this._prefs);
+
+  @override
+  Future<RuStoreToken?> read() async {
+    if (_cachedToken != null) return _cachedToken;
+    
+    final json = _prefs.getString('ru_token');
+    if (json == null) return null;
+    
+    try {
+      _cachedToken = RuStoreToken.fromJson(jsonDecode(json));
+      return _cachedToken;
+    } catch (e) {
+      await _prefs.remove('ru_token');
+      return null;
+    }
+  }
+
+  @override
+  Future<void> write(RuStoreToken value) async {
+    _cachedToken = value;
+    await _prefs.setString('ru_token', jsonEncode(value.toJson()));
+  }
+
+  @override
+  Future<void> delete() async {
+    _cachedToken = null;
+    await _prefs.remove('ru_token');
+  }
+}
+
 class TokenStorageImplShared implements TokenStorage<AuthTokenPair> {
   final SharedPreferences _prefs;
   AuthTokenPair? _cachedToken;
