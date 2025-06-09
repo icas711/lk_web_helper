@@ -1,111 +1,56 @@
-// ignore_for_file: public_member_api_docs, sort_constructors_first
-import 'dart:convert';
-
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-part 'status_event.freezed.dart';
-part 'status_event.g.dart';
 
 @freezed
-class StatusEvents with _$StatusEvents {
-  const factory StatusEvents({List<StatusEvent>? statusEvents}) = _StatusEvents;
+class StatusEvents {
+  final List<StatusEvent> statusEvents;
+
+  StatusEvents({required this.statusEvents});
+
+  factory StatusEvents.fromJson(Map<String, dynamic> json) {
+    return StatusEvents(
+      statusEvents: (json['items'] as List<dynamic>)
+          .map((e) => StatusEvent.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
 
   factory StatusEvents.fromList(List list) {
     return StatusEvents(
-      statusEvents: list.map((e) => StatusEvent.fromMap(e)).toList(),
+      statusEvents: list.map((e) => StatusEvent.fromJson(e)).toList(),
     );
   }
-
-  factory StatusEvents.fromJson(Map<String, dynamic> json) =>
-      _$StatusEventsFromJson(json);
+ Map<String, dynamic> toJson() {
+    return {
+      'items': statusEvents.map((e) => e.toJson()).toList(),
+    };
+  }
 }
 
 class StatusEvent {
-  final String? statusId;
-  final String? title;
-  final dynamic comment;
-  final String? eventDate;
-  final String? creatorId;
-  final String? creatorTitle;
-  StatusEvent({
-    this.statusId,
-    this.title,
-    required this.comment,
-    this.eventDate,
-    this.creatorId,
-    this.creatorTitle,
-  });
+  final String? organizationId;
+  final String? parentId;
+  final DateTime? date;
+  final String? status;
 
-  StatusEvent copyWith({
-    String? statusId,
-    String? title,
-    dynamic comment,
-    String? eventDate,
-    String? creatorId,
-    String? creatorTitle,
-  }) {
+  StatusEvent({this.organizationId, this.parentId, this.date, this.status});
+
+  factory StatusEvent.fromJson(Map<String, dynamic> json) {
     return StatusEvent(
-      statusId: statusId ?? this.statusId,
-      title: title ?? this.title,
-      comment: comment ?? this.comment,
-      eventDate: eventDate ?? this.eventDate,
-      creatorId: creatorId ?? this.creatorId,
-      creatorTitle: creatorTitle ?? this.creatorTitle,
+      organizationId: json['organizationId'] as String?,
+      parentId: json['parentId'] as String?,
+      date: json['date'] != null ? DateTime.parse(json['date']) : null,
+      status: json['status'] as String?,
     );
   }
 
-  Map<String, dynamic> toMap() {
-    return <String, dynamic>{
-      'statusId': statusId,
-      'title': title,
-      'comment': comment,
-      'eventDate': eventDate,
-      'creatorId': creatorId,
-      'creatorTitle': creatorTitle,
+  Map<String, dynamic> toJson() {
+    return {
+      'organizationId': organizationId,
+      'parentId': parentId,
+      'date': date?.toIso8601String(), // serialize as ISO
+      'status': status,
     };
-  }
-
-  factory StatusEvent.fromMap(Map<String, dynamic> map) {
-    return StatusEvent(
-      statusId: map['statusId'] != null ? map['statusId'] as String : null,
-      title: map['title'] != null ? map['title'] as String : null,
-      comment: map['comment'] as dynamic,
-      eventDate: map['eventDate'] != null ? map['eventDate'] as String : null,
-      creatorId: map['creatorId'] != null ? map['creatorId'] as String : null,
-      creatorTitle: map['creatorTitle'] != null ? map['creatorTitle'] as String : null,
-    );
-  }
-
-  String toJson() => json.encode(toMap());
-
-  factory StatusEvent.fromJson(String source) => StatusEvent.fromMap(json.decode(source) as Map<String, dynamic>);
-
-  @override
-  String toString() {
-    return 'StatusEvent(statusId: $statusId, title: $title, comment: $comment, eventDate: $eventDate, creatorId: $creatorId, creatorTitle: $creatorTitle)';
-  }
-
-  @override
-  bool operator ==(covariant StatusEvent other) {
-    if (identical(this, other)) return true;
-  
-    return 
-      other.statusId == statusId &&
-      other.title == title &&
-      other.comment == comment &&
-      other.eventDate == eventDate &&
-      other.creatorId == creatorId &&
-      other.creatorTitle == creatorTitle;
-  }
-
-  @override
-  int get hashCode {
-    return statusId.hashCode ^
-      title.hashCode ^
-      comment.hashCode ^
-      eventDate.hashCode ^
-      creatorId.hashCode ^
-      creatorTitle.hashCode;
   }
 }
 

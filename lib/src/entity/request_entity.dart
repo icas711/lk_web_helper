@@ -41,7 +41,7 @@ class RequestEntity {
   Map<String, dynamic> toMap() {
     return <String, dynamic>{
       'date': date,
-      'lastStatusEvent': lastStatusEvent?.toMap(),
+      'lastStatusEvent': lastStatusEvent?.toJson(),
       'number': number,
       'requestType': requestType?.toMap(),
       'id': id,
@@ -52,7 +52,7 @@ class RequestEntity {
   factory RequestEntity.fromMap(Map<String, dynamic> map) {
     return RequestEntity(
       date: map['date'] != null ? map['date'] as String : null,
-      lastStatusEvent: map['lastStatusEvent'] != null ? StatusEvent.fromMap(map['lastStatusEvent'] as Map<String,dynamic>) : null,
+      lastStatusEvent: map['lastStatusEvent'] != null ? StatusEvent.fromJson(map['lastStatusEvent'] as Map<String,dynamic>) : null,
       number: map['number'] != null ? map['number'] as String : null,
       requestType: map['requestType'] != null ? RequestType.fromMap(map['requestType'] as Map<String,dynamic>) : null,
       id: map['id'] != null ? map['id'] as String : null,

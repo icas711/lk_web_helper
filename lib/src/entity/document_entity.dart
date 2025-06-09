@@ -1,6 +1,10 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
+import '../model/status_event/status_event.dart';
+
 class DocumentEntities {
   final List<DocumentEntity> documents;
   const DocumentEntities({required this.documents});
@@ -39,6 +43,44 @@ class DocumentEntity {
   final String userId;
   final String? templateId;
   final String? date;
+  final List<StatusEvent> events;
+  bool _isRead = false;
+  bool get getRead => _isRead;
+  void setRead(bool value) {
+    _isRead = value;
+  }
+
+  /// Возвращает дату создания или изменения документа в формате "dd.MM.yyyy HH:mm"
+  /// Если событий нет, возвращает дату из поля date
+  /// Если дата не указана, возвращает "неизвестно"
+  String get lastEvent {
+    try {
+      if (events.isEmpty && date == null) return '';
+      if (events.isEmpty && date != null) {
+        final editDate = DateTime.tryParse(date!);
+        if (editDate == null) return '';
+        return 'Создано: ${_formatRu.format(editDate)}';
+      }
+
+      // Найти последнее событие с нужным статусом, иначе взять последнее событие, иначе null
+      final StatusEvent? event =
+          events.isNotEmpty
+              ? events.lastWhere(
+                (event) =>
+                    event.status == 'created' || event.status == 'updated',
+                orElse: () => events.last,
+              )
+              : null;
+
+      final status = (event?.status == 'updated') ? 'Изменено: ' : 'Создано: ';
+      if (event == null || event.date == null) return '$statusнеизвестно';
+      return '$status${_formatRu.format(event.date!)}';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  final DateFormat _formatRu = DateFormat('dd.MM.yyyy', 'ru');
   DocumentEntity({
     required this.organizationId,
     this.parentId,
@@ -47,7 +89,9 @@ class DocumentEntity {
     required this.userId,
     this.templateId,
     this.date,
-  });
+    this.events = const [],
+    bool? isRead,
+  }) : _isRead = isRead ?? false;
 
   DocumentEntity copyWith({
     String? organizationId,
@@ -57,6 +101,8 @@ class DocumentEntity {
     String? userId,
     String? templateId,
     String? date,
+    List<StatusEvent>? events,
+    bool? isRead,
   }) {
     return DocumentEntity(
       organizationId: organizationId ?? this.organizationId,
@@ -66,6 +112,8 @@ class DocumentEntity {
       userId: userId ?? this.userId,
       templateId: templateId ?? this.templateId,
       date: date ?? this.date,
+      events: events ?? this.events,
+      isRead: isRead ?? _isRead,
     );
   }
 
@@ -78,6 +126,8 @@ class DocumentEntity {
       'userId': userId,
       'templateId': templateId,
       'date': date,
+      'events': events.map((x) => x.toJson()).toList(),
+      'isRead': _isRead,
     };
   }
 
@@ -91,6 +141,9 @@ class DocumentEntity {
       templateId:
           map['templateId'] != null ? map['templateId'] as String : null,
       date: map['date'] != null ? map['date'] as String : null,
+      // events: StatusEvents.fromList(map['events']).statusEvents ?? [],
+      events: [],
+      isRead: map['isRead'] as bool? ?? false,
     );
   }
 
@@ -101,7 +154,7 @@ class DocumentEntity {
 
   @override
   String toString() {
-    return 'DocumentEntity(organizationId: $organizationId, parentId: $parentId, id: $id, title: $title, userId: $userId, templateId: $templateId, date: $date)';
+    return 'DocumentEntity(organizationId: $organizationId, parentId: $parentId, id: $id, title: $title, userId: $userId, templateId: $templateId, date: $date, events: $events)';
   }
 
   @override
@@ -114,7 +167,9 @@ class DocumentEntity {
         other.title == title &&
         other.userId == userId &&
         other.templateId == templateId &&
-        other.date == date;
+        other.date == date &&
+        listEquals(other.events, events) &&
+        other._isRead == _isRead;
   }
 
   @override
@@ -125,6 +180,8 @@ class DocumentEntity {
         title.hashCode ^
         userId.hashCode ^
         templateId.hashCode ^
-        date.hashCode;
+        date.hashCode ^
+        events.hashCode ^
+        _isRead.hashCode;
   }
 }
