@@ -71,29 +71,42 @@ class OAuth extends Interceptor {
 
     final authTokenPair = await storage.read();
     final expiresAtMillis = authTokenPair?.expiresAt;
-    final refreshExpiresAtMillis = authTokenPair?.refreshExpiresIn;
+    final refreshExpiresAtMillis = authTokenPair?.refreshExpiresAt;
     if (expiresAtMillis != null && refreshExpiresAtMillis != null) {
       final expiresAt = DateTime.fromMillisecondsSinceEpoch(expiresAtMillis);
       final refreshExpiresAt = DateTime.fromMillisecondsSinceEpoch(
         refreshExpiresAtMillis,
       );
-      final now= clock.now();
+      var now = DateTime.now().toLocal(); // Учитываем локальное время
+      now.add(Duration(seconds: 5)); // Добавляем небольшую задержку
       if (refreshExpiresAt.isBefore(now)) {
+        // refresh токен истёк, делаем login
         await login(
           PasswordGrant(
             username: authTokenPair?.username ?? '',
             password: authTokenPair?.password ?? '',
           ),
         );
+        // Читаем новый токен и повторяем запрос с ним
+        final newToken = (await storage.read())?.accessToken;
+        if (newToken != null) {
+          options.headers['Authorization'] = 'Bearer $newToken';
+        }
+        return handler.next(options); // повторяем запрос с новым токеном
       } else if (expiresAt.isBefore(now)) {
+        // access токен истёк, делаем refresh
         await refresh();
+        final newToken = (await storage.read())?.accessToken;
+        if (newToken != null) {
+          options.headers['Authorization'] = 'Bearer $newToken';
+        }
+        return handler.next(options);
       }
     }
 
-    final token = await storage.read();
-
-    if (token != null) {
-      options.headers['Authorization'] = 'Bearer ${token.accessToken}';
+    // Если токен валиден
+    if (authTokenPair != null) {
+      options.headers['Authorization'] = 'Bearer ${authTokenPair.accessToken}';
     }
     return super.onRequest(options, handler);
   }
@@ -139,13 +152,11 @@ class OAuth extends Interceptor {
       refreshExpiresIn: body['refresh_expires_in'] as int,
       userId: userid,
       expiresAt:
-          clock
-              .now()
+          (clock.now().isUtc ? clock.now().toUtc() : clock.now())
               .add((body['expires_in'] as int).seconds)
               .millisecondsSinceEpoch,
       refreshExpiresAt:
-          clock
-              .now()
+          (clock.now().isUtc ? clock.now().toUtc() : clock.now())
               .add((body['refresh_expires_in'] as int).seconds)
               .millisecondsSinceEpoch,
       username: username,
@@ -171,18 +182,10 @@ class OAuth extends Interceptor {
   }
 }
 
-extension NumTimeExtension<T extends num> on T {
-  /// Returns a Duration represented in seconds
-  Duration get seconds => milliseconds * Duration.millisecondsPerSecond;
-
-  /// Returns a Duration represented in milliseconds
-  Duration get milliseconds => Duration(
-    microseconds: (this * Duration.microsecondsPerMillisecond).toInt(),
-  );
-
-  /// Returns a Duration represented in microseconds
-  Duration get microseconds =>
-      milliseconds ~/ Duration.microsecondsPerMillisecond;
+extension NumTimeExtension on num {
+  Duration get seconds => Duration(seconds: toInt());
+  Duration get milliseconds => Duration(milliseconds: toInt());
+  Duration get microseconds => Duration(microseconds: toInt());
 }
 
 // Вспомогательный класс для безопасной работы с handler
