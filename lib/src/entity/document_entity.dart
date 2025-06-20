@@ -63,14 +63,12 @@ class DocumentEntity {
       }
 
       // Найти последнее событие с нужным статусом, иначе взять последнее событие, иначе null
-      final StatusEvent? event =
-          events.isNotEmpty
-              ? events.lastWhere(
-                (event) =>
-                    event.status == 'created' || event.status == 'updated',
-                orElse: () => events.last,
-              )
-              : null;
+      final StatusEvent? event = events.isNotEmpty
+          ? events.lastWhere(
+              (event) => event.status == 'created' || event.status == 'updated',
+              orElse: () => events.last,
+            )
+          : null;
 
       final status = (event?.status == 'updated') ? 'Изменено: ' : 'Создано: ';
       if (event == null || event.date == null) return '$statusнеизвестно';
@@ -138,8 +136,9 @@ class DocumentEntity {
       id: map['id'] as String,
       title: map['title'] as String,
       userId: map['userId'] as String,
-      templateId:
-          map['templateId'] != null ? map['templateId'] as String : null,
+      templateId: map['templateId'] != null
+          ? map['templateId'] as String
+          : null,
       date: map['date'] != null ? map['date'] as String : null,
       // events: StatusEvents.fromList(map['events']).statusEvents ?? [],
       events: [],

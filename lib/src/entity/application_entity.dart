@@ -1,6 +1,6 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'dart:convert';
-
+import 'package:intl/intl.dart';
 class ApplicationEntities {
   final List<ApplicationEntity> applications;
   const ApplicationEntities({required this.applications});
@@ -30,6 +30,8 @@ class ApplicationEntities {
   factory ApplicationEntities.fromJson(String source) =>
       ApplicationEntities.fromMap(json.decode(source) as Map<String, dynamic>);
 }
+
+final DateFormat _formatRu = DateFormat('dd.MM.yyyy', 'ru');
 
 class ApplicationEntity {
   final String organizationId;
@@ -88,14 +90,17 @@ class ApplicationEntity {
       id: map['id'] as String,
       title: map['title'] as String,
       userId: map['userId'] as String,
-      templateId: map['templateId'] != null ? map['templateId'] as String : null,
+      templateId: map['templateId'] != null
+          ? map['templateId'] as String
+          : null,
       date: map['date'] != null ? map['date'] as String : null,
     );
   }
 
   String toJson() => json.encode(toMap());
 
-  factory ApplicationEntity.fromJson(String source) => ApplicationEntity.fromMap(json.decode(source) as Map<String, dynamic>);
+  factory ApplicationEntity.fromJson(String source) =>
+      ApplicationEntity.fromMap(json.decode(source) as Map<String, dynamic>);
 
   @override
   String toString() {
@@ -105,25 +110,24 @@ class ApplicationEntity {
   @override
   bool operator ==(covariant ApplicationEntity other) {
     if (identical(this, other)) return true;
-  
-    return 
-      other.organizationId == organizationId &&
-      other.parentId == parentId &&
-      other.id == id &&
-      other.title == title &&
-      other.userId == userId &&
-      other.templateId == templateId &&
-      other.date == date;
+
+    return other.organizationId == organizationId &&
+        other.parentId == parentId &&
+        other.id == id &&
+        other.title == title &&
+        other.userId == userId &&
+        other.templateId == templateId &&
+        other.date == date;
   }
 
   @override
   int get hashCode {
     return organizationId.hashCode ^
-      parentId.hashCode ^
-      id.hashCode ^
-      title.hashCode ^
-      userId.hashCode ^
-      templateId.hashCode ^
-      date.hashCode;
+        parentId.hashCode ^
+        id.hashCode ^
+        title.hashCode ^
+        userId.hashCode ^
+        templateId.hashCode ^
+        date.hashCode;
   }
 }

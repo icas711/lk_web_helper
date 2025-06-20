@@ -1,6 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-
 @freezed
 class StatusEvents {
   final List<StatusEvent> statusEvents;
@@ -9,9 +8,10 @@ class StatusEvents {
 
   factory StatusEvents.fromJson(Map<String, dynamic> json) {
     return StatusEvents(
-      statusEvents: (json['items'] as List<dynamic>)
-          .map((e) => StatusEvent.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      statusEvents:
+          (json['items'] as List<dynamic>)
+              .map((e) => StatusEvent.fromJson(e as Map<String, dynamic>))
+              .toList(),
     );
   }
 
@@ -20,10 +20,8 @@ class StatusEvents {
       statusEvents: list.map((e) => StatusEvent.fromJson(e)).toList(),
     );
   }
- Map<String, dynamic> toJson() {
-    return {
-      'items': statusEvents.map((e) => e.toJson()).toList(),
-    };
+  Map<String, dynamic> toJson() {
+    return {'items': statusEvents.map((e) => e.toJson()).toList()};
   }
 }
 
@@ -56,12 +54,12 @@ class StatusEvent {
 
 enum StatusIdEnum {
   created('46ded70e-cde9-42d2-9f51-6f102fd911b0', 'Создан'),
-  outgoing('5fa9ed2b-5fab-4b41-b2fd-bbeb738c2f26', 'Отправлен'),
-  forSignature('for-signature', 'На подпись'),
-  waitingForSignatory('waiting-for-signatory', 'Ждем подписанта'),
-  signed('signed', 'Подписан'),
-  closed('closed', 'Завершен'),
-  incoming('incoming', 'Входящий'),
+  sent('5fa9ed2b-5fab-4b41-b2fd-bbeb738c2f26', 'Отправлен'),
+  in_processing('in_processing ', 'В обработке'),
+  sent_for_approval('sent_for_approval', 'На согласовании'),
+  rejected('rejected', 'Отклонена'),
+  approved('approved', 'Согласована'),
+  approved_with_comments('approved_with_comments', 'Согласована с замечаниями'),
   unknown('', '');
 
   final String value;
