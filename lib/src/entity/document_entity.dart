@@ -42,6 +42,7 @@ class DocumentEntity {
   final String title;
   final String userId;
   final String? templateId;
+  final String? type;
   final String? date;
   final List<StatusEvent> events;
   bool _isRead = false;
@@ -63,12 +64,14 @@ class DocumentEntity {
       }
 
       // Найти последнее событие с нужным статусом, иначе взять последнее событие, иначе null
-      final StatusEvent? event = events.isNotEmpty
-          ? events.lastWhere(
-              (event) => event.status == 'created' || event.status == 'updated',
-              orElse: () => events.last,
-            )
-          : null;
+      final StatusEvent? event =
+          events.isNotEmpty
+              ? events.lastWhere(
+                (event) =>
+                    event.status == 'created' || event.status == 'updated',
+                orElse: () => events.last,
+              )
+              : null;
 
       final status = (event?.status == 'updated') ? 'Изменено: ' : 'Создано: ';
       if (event == null || event.date == null) return '$statusнеизвестно';
@@ -86,6 +89,7 @@ class DocumentEntity {
     required this.title,
     required this.userId,
     this.templateId,
+    this.type,
     this.date,
     this.events = const [],
     bool? isRead,
@@ -101,6 +105,7 @@ class DocumentEntity {
     String? date,
     List<StatusEvent>? events,
     bool? isRead,
+    String? type,
   }) {
     return DocumentEntity(
       organizationId: organizationId ?? this.organizationId,
@@ -112,6 +117,7 @@ class DocumentEntity {
       date: date ?? this.date,
       events: events ?? this.events,
       isRead: isRead ?? _isRead,
+      type: type ?? this.type,
     );
   }
 
@@ -126,6 +132,7 @@ class DocumentEntity {
       'date': date,
       'events': events.map((x) => x.toJson()).toList(),
       'isRead': _isRead,
+      'type': type,
     };
   }
 
@@ -136,13 +143,13 @@ class DocumentEntity {
       id: map['id'] as String,
       title: map['title'] as String,
       userId: map['userId'] as String,
-      templateId: map['templateId'] != null
-          ? map['templateId'] as String
-          : null,
+      templateId:
+          map['templateId'] != null ? map['templateId'] as String : null,
       date: map['date'] != null ? map['date'] as String : null,
       // events: StatusEvents.fromList(map['events']).statusEvents ?? [],
       events: [],
       isRead: map['isRead'] as bool? ?? false,
+      type: map['type'] as String?,
     );
   }
 
@@ -160,27 +167,13 @@ class DocumentEntity {
   bool operator ==(covariant DocumentEntity other) {
     if (identical(this, other)) return true;
 
-    return other.organizationId == organizationId &&
-        other.parentId == parentId &&
-        other.id == id &&
-        other.title == title &&
-        other.userId == userId &&
-        other.templateId == templateId &&
-        other.date == date &&
+    return other.id == id &&
         listEquals(other.events, events) &&
         other._isRead == _isRead;
   }
 
   @override
   int get hashCode {
-    return organizationId.hashCode ^
-        parentId.hashCode ^
-        id.hashCode ^
-        title.hashCode ^
-        userId.hashCode ^
-        templateId.hashCode ^
-        date.hashCode ^
-        events.hashCode ^
-        _isRead.hashCode;
+    return id.hashCode ^ events.hashCode ^ _isRead.hashCode;
   }
 }

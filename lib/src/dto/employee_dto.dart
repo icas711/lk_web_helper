@@ -1,13 +1,13 @@
 import 'dart:convert';
 
-class EmployeeEntity {
+class EmployeeDto {
   final String organizationId;
   final String? parentId;
   final String id;
   final String title;
   final String userId;
   final String number;
-  EmployeeEntity({
+  EmployeeDto({
     required this.organizationId,
     this.parentId,
     required this.id,
@@ -16,8 +16,8 @@ class EmployeeEntity {
     required this.number,
   });
 
-factory EmployeeEntity.anonimus()=>EmployeeEntity(organizationId: '', id: '-1', title: 'Аноним', userId: '-1', number: '-1');
-  EmployeeEntity copyWith({
+factory EmployeeDto.anonimus()=>EmployeeDto(organizationId: '', id: '-1', title: 'Аноним', userId: '-1', number: '-1');
+  EmployeeDto copyWith({
     String? organizationId,
     String? parentId,
     String? id,
@@ -25,7 +25,7 @@ factory EmployeeEntity.anonimus()=>EmployeeEntity(organizationId: '', id: '-1', 
     String? userId,
     String? number,
   }) {
-    return EmployeeEntity(
+    return EmployeeDto(
       organizationId: organizationId ?? this.organizationId,
       parentId: parentId ?? this.parentId,
       id: id ?? this.id,
@@ -47,8 +47,8 @@ factory EmployeeEntity.anonimus()=>EmployeeEntity(organizationId: '', id: '-1', 
     };
   }
 
-  factory EmployeeEntity.fromMap(Map<String, dynamic> map) {
-    return EmployeeEntity(
+  factory EmployeeDto.fromMap(Map<String, dynamic> map) {
+    return EmployeeDto(
       organizationId: map['organizationId'] as String,
       parentId: map['parentId'] != null ? map['parentId'] as String : null,
       id: map['id'] as String,
@@ -60,8 +60,8 @@ factory EmployeeEntity.anonimus()=>EmployeeEntity(organizationId: '', id: '-1', 
 
   String toJson() => json.encode(toMap());
 
-  factory EmployeeEntity.fromJson(String source) =>
-      EmployeeEntity.fromMap(json.decode(source) as Map<String, dynamic>);
+  factory EmployeeDto.fromJson(String source) =>
+      EmployeeDto.fromMap(json.decode(source) as Map<String, dynamic>);
 
   @override
   String toString() {
@@ -69,7 +69,7 @@ factory EmployeeEntity.anonimus()=>EmployeeEntity(organizationId: '', id: '-1', 
   }
 
   @override
-  bool operator ==(covariant EmployeeEntity other) {
+  bool operator ==(covariant EmployeeDto other) {
     if (identical(this, other)) return true;
     return other.id == id;
   }

@@ -1,3 +1,7 @@
+/// Dto Network
+export 'src/dto/employee_dto.dart';
+export 'src/dto/organization_dto.dart';
+
 /// Helpers
 export 'src/helpers/custom_date_formatter.dart';
 export 'src/helpers/jwt_decoder.dart';
@@ -10,7 +14,6 @@ export 'src/enum/border_radius_enum.dart';
 /// Entities
 export 'src/entity/application_entity.dart';
 export 'src/entity/document_entity.dart';
-export 'src/entity/employee_entity.dart';
 export 'src/entity/request_entity.dart';
 export 'src/entity/server_files.dart';
 export 'src/entity/template_entity.dart';
