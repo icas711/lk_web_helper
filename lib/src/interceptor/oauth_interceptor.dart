@@ -63,6 +63,11 @@ class OAuth2Interceptor extends Interceptor {
     return handler.next(err);
   }
 
+  void dispose() {
+    _authDio.close();
+  }
+
+
   Future<String> _getValidAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
     final accessToken = prefs.getString(_accessTokenKey);
@@ -135,6 +140,7 @@ class OAuth2Interceptor extends Interceptor {
 
   // Метод для выхода (очистки токенов)
   Future<void> logout() async {
+    dispose();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_accessTokenKey);
     await prefs.remove(_refreshTokenKey);

@@ -38,8 +38,6 @@ class OAuth extends Interceptor {
   final TokenStorage<AuthTokenPair> storage;
 
   final _refreshLock = Lock();
-  final _pendingRequests = <Completer<void>>[];
-  bool _isRefreshing = false;
 
   Future<bool> get isSignedIn async {
     final AuthTokenPair? token = await storage.read();
@@ -48,15 +46,28 @@ class OAuth extends Interceptor {
 
   Future<AuthTokenPair?> get token async => storage.read();
 
-  Future<TokenData> getData() async {
+  Future<TokenData?> getData() async {
     final AuthTokenPair? authTokenPair = await storage.read();
-    Map<String, dynamic> decodedToken = JwtDecoder.decode(
-      authTokenPair?.accessToken ?? '',
-    );
-    return (TokenData(
-      userEmail: decodedToken['email'],
-      organizationId: decodedToken['organizationId'],
-    ));
+    if (authTokenPair?.accessToken == null ||
+        authTokenPair!.accessToken.isEmpty) {
+      return null; // Возвращаем null вместо исключения
+    }
+
+    try {
+      Map<String, dynamic> decodedToken = JwtDecoder.decode(
+        authTokenPair.accessToken,
+      );
+      return TokenData(
+        userEmail: decodedToken['email'],
+        organizationId: decodedToken['organizationId'],
+      );
+    } catch (e) {
+      // Логируем ошибку и возвращаем null вместо исключения
+      if (kDebugMode) {
+        print('Failed to decode token: $e');
+      }
+      return null;
+    }
   }
 
   final _storageLock = Lock();
@@ -78,27 +89,47 @@ class OAuth extends Interceptor {
         refreshExpiresAtMillis,
       );
       var now = DateTime.now().toLocal(); // Учитываем локальное время
-      now.add(Duration(seconds: 5)); // Добавляем небольшую задержку
+      now = now.add(Duration(seconds: 5)); // Добавляем небольшую задержку
       if (refreshExpiresAt.isBefore(now)) {
-        // refresh токен истёк, делаем login
-        await login(
-          PasswordGrant(
-            username: authTokenPair?.username ?? '',
-            password: authTokenPair?.password ?? '',
-          ),
-        );
-        // Читаем новый токен и повторяем запрос с ним
-        final newToken = (await storage.read())?.accessToken;
-        if (newToken != null) {
-          options.headers['Authorization'] = 'Bearer $newToken';
+        // refresh токен истёк, проверяем наличие credentials
+        final username = authTokenPair?.username;
+        final password = authTokenPair?.password;
+        
+        if (username != null && username.isNotEmpty && 
+            password != null && password.isNotEmpty) {
+          // Делаем login только если есть валидные credentials
+          try {
+            await login(
+              PasswordGrant(
+                username: username,
+                password: password,
+              ),
+            );
+            // Читаем новый токен и повторяем запрос с ним
+            final newToken = (await storage.read())?.accessToken;
+            if (newToken != null) {
+              options.headers['Authorization'] = 'Bearer $newToken';
+            }
+          } catch (e) {
+            // Если login не удался - продолжаем без токена
+            // Можно залогировать ошибку в debug режиме
+            if (kDebugMode) {
+              print('OAuth login failed: $e');
+            }
+          }
+        } else {
+          // Нет валидных credentials - очищаем хранилище
+          await storage.delete();
         }
-        return handler.next(options); // повторяем запрос с новым токеном
+        return handler.next(options);
       } else if (expiresAt.isBefore(now)) {
         // access токен истёк, делаем refresh
-        await refresh();
-        final newToken = (await storage.read())?.accessToken;
-        if (newToken != null) {
-          options.headers['Authorization'] = 'Bearer $newToken';
+        final refreshSuccess = await refresh();
+        if (refreshSuccess) {
+          final newToken = (await storage.read())?.accessToken;
+          if (newToken != null) {
+            options.headers['Authorization'] = 'Bearer $newToken';
+          }
         }
         return handler.next(options);
       }
@@ -111,12 +142,22 @@ class OAuth extends Interceptor {
     return super.onRequest(options, handler);
   }
 
-  String? username;
-  String? password;
   Future<AuthTokenPair> login(OAuthGrantType grant) async {
+    String? username;
+    String? password;
+
     if (grant is PasswordGrant) {
       username = grant.username;
       password = grant.password;
+      
+      // Проверяем валидность credentials для PasswordGrant
+      if (username.isEmpty || password.isEmpty) {
+        throw DioException(
+          requestOptions: RequestOptions(path: tokenUrl),
+          error: 'Username and password cannot be empty',
+          type: DioExceptionType.unknown,
+        );
+      }
     }
 
     final options = await grant.handle(
@@ -143,21 +184,52 @@ class OAuth extends Interceptor {
         method: options.method,
       ),
     );
-    final body = response.data!;
-    final userid = JwtDecoder.decode(body['access_token'])['userId'];
+
+    final body = response.data;
+    if (body == null) {
+      throw DioException(
+        requestOptions: response.requestOptions,
+        error: 'Response body is null',
+        type: DioExceptionType.badResponse,
+      );
+    }
+
+    final accessToken = body['access_token'] as String?;
+    if (accessToken == null || accessToken.isEmpty) {
+      throw DioException(
+        requestOptions: response.requestOptions,
+        error: 'Access token not found in response',
+        type: DioExceptionType.badResponse,
+      );
+    }
+
+    // Безопасное декодирование JWT
+    Map<String, dynamic> decodedToken;
+    try {
+      decodedToken = JwtDecoder.decode(accessToken);
+    } catch (e) {
+      throw DioException(
+        requestOptions: response.requestOptions,
+        error: 'Invalid JWT token: $e',
+        type: DioExceptionType.badResponse,
+      );
+    }
+
+    final userid = decodedToken['userId'];
+    final now = clock.now();
     final AuthTokenPair authTokenPair = AuthTokenPair(
-      accessToken: body['access_token'] ?? '',
-      refreshToken: body['refresh_token'] ?? '',
-      expiresIn: body['expires_in'] as int,
-      refreshExpiresIn: body['refresh_expires_in'] as int,
+      accessToken: accessToken,
+      refreshToken: body['refresh_token'] as String? ?? '',
+      expiresIn: body['expires_in'] as int? ?? 3600,
+      refreshExpiresIn: body['refresh_expires_in'] as int? ?? 86400,
       userId: userid,
       expiresAt:
-          (clock.now().isUtc ? clock.now().toUtc() : clock.now())
-              .add((body['expires_in'] as int).seconds)
+          now
+              .add((body['expires_in'] as int? ?? 3600).seconds)
               .millisecondsSinceEpoch,
       refreshExpiresAt:
-          (clock.now().isUtc ? clock.now().toUtc() : clock.now())
-              .add((body['refresh_expires_in'] as int).seconds)
+          now
+              .add((body['refresh_expires_in'] as int? ?? 86400).seconds)
               .millisecondsSinceEpoch,
       username: username,
       password: password,
@@ -168,12 +240,92 @@ class OAuth extends Interceptor {
     return authTokenPair;
   }
 
-  Future<void> refresh() async {
-    final refreshToken = (await storage.read())?.refreshToken;
-    if (refreshToken != null) {
-      final grant = RefreshTokenGrant(refreshToken: refreshToken);
-      await login(grant);
+  @override
+  Future<void> onError(
+    DioException error,
+    ErrorInterceptorHandler handler,
+  ) async {
+    // Если это сетевая ошибка (нет интернета, timeout и т.д.)
+    if (error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.sendTimeout ||
+        error.type == DioExceptionType.receiveTimeout ||
+        error.type == DioExceptionType.connectionError) {
+      // НЕ пытаемся обновить токен при сетевых ошибках
+      // Просто пропускаем ошибку дальше
+      return handler.next(error);
     }
+
+    // Проверяем, что это не запрос на получение токена (избегаем бесконечный цикл)
+    if (error.requestOptions.path == tokenUrl) {
+      return handler.next(error);
+    }
+
+    // Если это 401 (Unauthorized) - тогда пытаемся обновить токен
+    if (error.response?.statusCode == 401) {
+      return await _refreshLock.synchronized(() async {
+        try {
+          // Проверяем, не обновили ли токен уже другой запрос
+          final currentToken = await storage.read();
+          if (currentToken != null &&
+              error.requestOptions.headers['Authorization'] ==
+                  'Bearer ${currentToken.accessToken}') {
+            // Токен тот же, нужно обновить
+            await refresh();
+          }
+
+          // Получаем обновленный токен
+          final newToken = await storage.read();
+          if (newToken?.accessToken != null) {
+            // Повторяем оригинальный запрос с новым токеном
+            final requestOptions = error.requestOptions;
+            requestOptions.headers['Authorization'] =
+                'Bearer ${newToken!.accessToken}';
+
+            try {
+              final response = await apiDio.fetch(requestOptions);
+              return handler.resolve(response);
+            } catch (retryError) {
+              // Если повторный запрос не удался - пропускаем исходную ошибку
+              return handler.next(error);
+            }
+          } else {
+            // Токен не получен - пропускаем ошибку
+            return handler.next(error);
+          }
+        } catch (refreshError) {
+          // Если refresh не удался - пропускаем ошибку
+          return handler.next(error);
+        }
+      });
+    }
+
+    return handler.next(error);
+  }
+
+  Future<bool> refresh() async {
+    final refreshToken = (await storage.read())?.refreshToken;
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      final grant = RefreshTokenGrant(refreshToken: refreshToken);
+      try {
+        await login(grant);
+        return true;
+      } catch (e) {
+        // Если refresh не удался, очищаем хранилище
+        await storage.delete();
+        if (kDebugMode) {
+          print('OAuth refresh failed: $e');
+        }
+        return false;
+      }
+    } else {
+      // Нет refresh токена - очищаем хранилище
+      await storage.delete();
+      return false;
+    }
+  }
+
+  void dispose() {
+    _authDio.close();
   }
 
   Future<void> logout() async {
@@ -186,26 +338,4 @@ extension NumTimeExtension on num {
   Duration get seconds => Duration(seconds: toInt());
   Duration get milliseconds => Duration(milliseconds: toInt());
   Duration get microseconds => Duration(microseconds: toInt());
-}
-
-// Вспомогательный класс для безопасной работы с handler
-class _SafeHandler {
-  final RequestInterceptorHandler _handler;
-  bool _isCompleted = false;
-
-  _SafeHandler(this._handler);
-
-  void next(RequestOptions options) {
-    if (!_isCompleted) {
-      _isCompleted = true;
-      _handler.next(options);
-    }
-  }
-
-  void reject(DioException error) {
-    if (!_isCompleted) {
-      _isCompleted = true;
-      _handler.reject(error);
-    }
-  }
 }
