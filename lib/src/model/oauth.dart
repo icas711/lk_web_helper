@@ -94,17 +94,14 @@ class OAuth extends Interceptor {
         // refresh токен истёк, проверяем наличие credentials
         final username = authTokenPair?.username;
         final password = authTokenPair?.password;
-        
-        if (username != null && username.isNotEmpty && 
-            password != null && password.isNotEmpty) {
+
+        if (username != null &&
+            username.isNotEmpty &&
+            password != null &&
+            password.isNotEmpty) {
           // Делаем login только если есть валидные credentials
           try {
-            await login(
-              PasswordGrant(
-                username: username,
-                password: password,
-              ),
-            );
+            await login(PasswordGrant(username: username, password: password));
             // Читаем новый токен и повторяем запрос с ним
             final newToken = (await storage.read())?.accessToken;
             if (newToken != null) {
@@ -119,7 +116,7 @@ class OAuth extends Interceptor {
           }
         } else {
           // Нет валидных credentials - очищаем хранилище
-          await storage.delete();
+          await clearStorage();
         }
         return handler.next(options);
       } else if (expiresAt.isBefore(now)) {
@@ -149,7 +146,7 @@ class OAuth extends Interceptor {
     if (grant is PasswordGrant) {
       username = grant.username;
       password = grant.password;
-      
+
       // Проверяем валидность credentials для PasswordGrant
       if (username.isEmpty || password.isEmpty) {
         throw DioException(
@@ -312,8 +309,8 @@ class OAuth extends Interceptor {
       } on DioException catch (e) {
         // Если refresh не удался, очищаем хранилище
         if (e.response?.statusCode == 400 || e.response?.statusCode == 401) {
-        await storage.delete();
-      }
+          await clearStorage();
+        }
         if (kDebugMode) {
           print('OAuth refresh failed: $e');
         }
@@ -321,7 +318,7 @@ class OAuth extends Interceptor {
       }
     } else {
       // Нет refresh токена - очищаем хранилище
-     // await storage.delete();
+      // await storage.delete();
       return false;
     }
   }
@@ -333,6 +330,18 @@ class OAuth extends Interceptor {
   Future<void> logout() async {
     await storage.delete();
     _authDio.close();
+  }
+
+  Future<void> clearStorage() async {
+    final authTokenPair = await storage.read();
+
+    final username = authTokenPair?.username;
+    final password = authTokenPair?.password;
+
+    if ((username == null || username.isEmpty) ||
+        (password == null || password.isEmpty)) {
+      await storage.delete();
+    }
   }
 }
 
