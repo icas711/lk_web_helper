@@ -309,9 +309,11 @@ class OAuth extends Interceptor {
       try {
         await login(grant);
         return true;
-      } catch (e) {
+      } on DioException catch (e) {
         // Если refresh не удался, очищаем хранилище
+        if (e.response?.statusCode == 400 || e.response?.statusCode == 401) {
         await storage.delete();
+      }
         if (kDebugMode) {
           print('OAuth refresh failed: $e');
         }
@@ -319,7 +321,7 @@ class OAuth extends Interceptor {
       }
     } else {
       // Нет refresh токена - очищаем хранилище
-      await storage.delete();
+     // await storage.delete();
       return false;
     }
   }
