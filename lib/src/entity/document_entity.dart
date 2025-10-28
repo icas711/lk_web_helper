@@ -58,6 +58,15 @@ class DocumentEntity {
   String get lastEvent {
     try {
       if (events.isEmpty && date == null) return '';
+      if(_isRead) {
+        final readEvent = events.firstWhere(
+          (event) => event.status == 'read',
+          orElse: () => StatusEvent(status: 'read', date: null),
+        );
+        if(readEvent.date != null) {
+          return 'Прочитано: ${_formatRu.format(readEvent.date!)}';
+        }
+      }
       if (events.isEmpty && date != null) {
         final editDate = DateTime.tryParse(date!);
         if (editDate == null) return '';
