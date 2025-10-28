@@ -308,9 +308,9 @@ class OAuth extends Interceptor {
         return true;
       } on DioException catch (e) {
         // Если refresh не удался, очищаем хранилище
-        if (e.response?.statusCode == 400 || e.response?.statusCode == 401) {
-          await clearStorage();
-        }
+        // if (e.response?.statusCode == 400 || e.response?.statusCode == 401) {
+        //   await clearStorage();
+        // }
         if (kDebugMode) {
           print('OAuth refresh failed: $e');
         }
@@ -318,7 +318,7 @@ class OAuth extends Interceptor {
       }
     } else {
       // Нет refresh токена - очищаем хранилище
-      // await storage.delete();
+       await storage.delete();
       return false;
     }
   }
