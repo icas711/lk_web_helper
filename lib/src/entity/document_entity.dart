@@ -44,6 +44,7 @@ class DocumentEntity {
   final String? templateId;
   final String? type;
   final String? date;
+  final String? readDate ;
   final List<StatusEvent> events;
   bool _isRead = false;
   bool get getRead => _isRead;
@@ -93,6 +94,7 @@ class DocumentEntity {
     this.date,
     this.events = const [],
     bool? isRead,
+    this.readDate,
   }) : _isRead = isRead ?? false;
 
   DocumentEntity copyWith({
@@ -105,6 +107,7 @@ class DocumentEntity {
     String? date,
     List<StatusEvent>? events,
     bool? isRead,
+    String? readDate,
     String? type,
   }) {
     return DocumentEntity(
@@ -118,6 +121,7 @@ class DocumentEntity {
       events: events ?? this.events,
       isRead: isRead ?? _isRead,
       type: type ?? this.type,
+      readDate: readDate ?? this.readDate,
     );
   }
 
@@ -133,6 +137,7 @@ class DocumentEntity {
       'events': events.map((x) => x.toJson()).toList(),
       'isRead': _isRead,
       'type': type,
+      'readDate': readDate,
     };
   }
 
@@ -150,6 +155,7 @@ class DocumentEntity {
       events: [],
       isRead: map['isRead'] as bool? ?? false,
       type: map['type'] as String?,
+      readDate: map['readDate'] != null ? map['readDate'] as String : null,
     );
   }
 
@@ -175,5 +181,18 @@ class DocumentEntity {
   @override
   int get hashCode {
     return id.hashCode ^ events.hashCode ^ _isRead.hashCode;
+  }
+}
+
+
+extension DocumentEntityExtension on DocumentEntity {
+  String? get dateOfRead {
+    if(!_isRead) return null; 
+    final event = events.firstWhere(
+      (event) => event.status == 'read',
+      orElse: () => StatusEvent(status: 'read', date: null),
+    );
+
+    return _formatRu.format(event.date!);
   }
 }
