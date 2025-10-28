@@ -307,14 +307,16 @@ class OAuth extends Interceptor {
         await login(grant);
         return true;
       } on DioException catch (e) {
+        final passwordGrant = PasswordGrant(
+          username: (await storage.read())?.username ?? '',
+          password: (await storage.read())?.password ?? '',
+        );
+        await login(passwordGrant);
+        return true;
         // Если refresh не удался, очищаем хранилище
         // if (e.response?.statusCode == 400 || e.response?.statusCode == 401) {
         //   await clearStorage();
         // }
-        if (kDebugMode) {
-          print('OAuth refresh failed: $e');
-        }
-        return false;
       }
     } else {
       // Нет refresh токена - очищаем хранилище
