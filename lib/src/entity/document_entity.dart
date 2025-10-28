@@ -44,12 +44,17 @@ class DocumentEntity {
   final String? templateId;
   final String? type;
   final String? date;
-  final String? readDate ;
+  final String? readDate;
   final List<StatusEvent> events;
   bool _isRead = false;
   bool get getRead => _isRead;
   void setRead(bool value) {
     _isRead = value;
+  }
+
+  void setEvents(List<StatusEvent> value) {
+    events.clear();
+    events.addAll(value);
   }
 
   /// Возвращает дату создания или изменения документа в формате "dd.MM.yyyy HH:mm"
@@ -58,12 +63,12 @@ class DocumentEntity {
   String get lastEvent {
     try {
       if (events.isEmpty && date == null) return '';
-      if(_isRead) {
+      if (_isRead) {
         final readEvent = events.firstWhere(
-          (event) => event.status == 'read',
-          orElse: () => StatusEvent(status: 'read', date: null),
+          (event) => event.status == 'isRead',
+          orElse: () => StatusEvent(status: 'isRead', date: null),
         );
-        if(readEvent.date != null) {
+        if (readEvent.date != null) {
           return 'Прочитано: ${_formatRu.format(readEvent.date!)}';
         }
       }
@@ -161,7 +166,11 @@ class DocumentEntity {
           map['templateId'] != null ? map['templateId'] as String : null,
       date: map['date'] != null ? map['date'] as String : null,
       // events: StatusEvents.fromList(map['events']).statusEvents ?? [],
-      events: [],
+      events:
+          (map['events'] as List<dynamic>?)
+              ?.map((e) => StatusEvent.fromJson(e))
+              .toList() ??
+          [],
       isRead: map['isRead'] as bool? ?? false,
       type: map['type'] as String?,
       readDate: map['readDate'] != null ? map['readDate'] as String : null,
@@ -193,13 +202,12 @@ class DocumentEntity {
   }
 }
 
-
 extension DocumentEntityExtension on DocumentEntity {
   String? get dateOfRead {
-    if(!_isRead) return null; 
+    if (!_isRead) return null;
     final event = events.firstWhere(
-      (event) => event.status == 'read',
-      orElse: () => StatusEvent(status: 'read', date: null),
+      (event) => event.status == 'isRead',
+      orElse: () => StatusEvent(status: 'isRead', date: null),
     );
 
     return _formatRu.format(event.date!);
