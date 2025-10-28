@@ -1,6 +1,7 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'dart:convert';
 import 'package:intl/intl.dart';
+
 class ApplicationEntities {
   final List<ApplicationEntity> applications;
   const ApplicationEntities({required this.applications});
@@ -41,6 +42,7 @@ class ApplicationEntity {
   final String userId;
   final String? templateId;
   final String? date;
+  final bool? unFinished;
   ApplicationEntity({
     required this.organizationId,
     this.parentId,
@@ -49,6 +51,7 @@ class ApplicationEntity {
     required this.userId,
     this.templateId,
     this.date,
+    this.unFinished,
   });
 
   ApplicationEntity copyWith({
@@ -59,6 +62,7 @@ class ApplicationEntity {
     String? userId,
     String? templateId,
     String? date,
+    bool? unFinished,
   }) {
     return ApplicationEntity(
       organizationId: organizationId ?? this.organizationId,
@@ -68,6 +72,7 @@ class ApplicationEntity {
       userId: userId ?? this.userId,
       templateId: templateId ?? this.templateId,
       date: date ?? this.date,
+      unFinished: unFinished ?? this.unFinished,
     );
   }
 
@@ -80,6 +85,7 @@ class ApplicationEntity {
       'userId': userId,
       'templateId': templateId,
       'date': date,
+      'unFinished': unFinished,
     };
   }
 
@@ -90,10 +96,10 @@ class ApplicationEntity {
       id: map['id'] as String,
       title: map['title'] as String,
       userId: map['userId'] as String,
-      templateId: map['templateId'] != null
-          ? map['templateId'] as String
-          : null,
+      templateId:
+          map['templateId'] != null ? map['templateId'] as String : null,
       date: map['date'] != null ? map['date'] as String : null,
+      unFinished: map['unFinished'] != null ? map['unFinished'] as bool : null,
     );
   }
 
@@ -117,6 +123,7 @@ class ApplicationEntity {
         other.title == title &&
         other.userId == userId &&
         other.templateId == templateId &&
+        other.unFinished == unFinished &&
         other.date == date;
   }
 
@@ -128,6 +135,7 @@ class ApplicationEntity {
         title.hashCode ^
         userId.hashCode ^
         templateId.hashCode ^
+        unFinished.hashCode ^
         date.hashCode;
   }
 }
