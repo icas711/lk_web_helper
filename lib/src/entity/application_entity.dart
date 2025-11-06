@@ -90,11 +90,12 @@ class ApplicationEntity {
   }
 
   factory ApplicationEntity.fromMap(Map<String, dynamic> map) {
+   if(map.isEmpty) return ApplicationEntity(organizationId: '', id: '', title: '', userId: '');
     return ApplicationEntity(
       organizationId: map['organizationId'] as String,
       parentId: map['parentId'] != null ? map['parentId'] as String : null,
       id: map['id'] as String,
-      title: map['title'] as String,
+      title: map['title'] != null ? map['title'] as String : 'Заявка',
       userId: map['userId'] as String,
       templateId:
           map['templateId'] != null ? map['templateId'] as String : null,

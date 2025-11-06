@@ -21,8 +21,8 @@ export 'src/entity/template_entity.dart';
 /// Models
 export 'src/model/user.dart';
 export 'src/model/employees.dart';
-export 'src/model/oauth.dart';
-export 'src/model/oauth_grant_type.dart';
+// export 'src/model/oauth.dart';
+// export 'src/model/oauth_grant_type.dart';
 export 'src/model/ru_store_application.dart';
 export 'src/model/ru_store_content.dart';
 export 'src/model/ru_store_token.dart';

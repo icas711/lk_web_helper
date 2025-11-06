@@ -25,6 +25,7 @@ enum EndPointType {
     '',
   ),
   application('/applications/', '/detailsOut/', ''),
+  applicationIn('/applications/', '/detailsIn/', ''),
   applicationFiles('/applications/', '/files/', '/data'),
   applicationEvents('/application_statuses/?parentId=', '', ''),
 

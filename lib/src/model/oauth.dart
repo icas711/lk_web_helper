@@ -108,15 +108,26 @@ class OAuth extends Interceptor {
               options.headers['Authorization'] = 'Bearer $newToken';
             }
           } catch (e) {
-            // Если login не удался - продолжаем без токена
-            // Можно залогировать ошибку в debug режиме
-            if (kDebugMode) {
-              print('OAuth login failed: $e');
+            // Если login не удался из-за сети - оставляем старый токен для работы с кэшем
+            if (e is DioException &&
+                (e.type == DioExceptionType.connectionTimeout ||
+                    e.type == DioExceptionType.connectionError)) {
+              // Сетевая ошибка - оставляем токен
+              if (kDebugMode) {
+                print('OAuth login failed due to network: $e');
+              }
+            } else {
+              // Другая ошибка - возможно, неверные credentials
+              if (kDebugMode) {
+                print('OAuth login failed: $e');
+              }
             }
           }
         } else {
           // Нет валидных credentials - очищаем хранилище
-          await clearStorage();
+          debugPrint(
+            'No credentials to refresh token, continuing with expired token for offline mode',
+          );
         }
         return handler.next(options);
       } else if (expiresAt.isBefore(now)) {
@@ -320,7 +331,7 @@ class OAuth extends Interceptor {
       }
     } else {
       // Нет refresh токена - очищаем хранилище
-       await storage.delete();
+      await storage.delete();
       return false;
     }
   }
